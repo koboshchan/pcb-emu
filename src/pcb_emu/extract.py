@@ -6,10 +6,7 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-try:
-    import pcbnew
-except ImportError:
-    pcbnew = None
+pcbnew = None  # Loaded lazily only when a PCB is actually extracted.
 from shapely.geometry import Polygon
 from shapely.strtree import STRtree
 
@@ -53,8 +50,13 @@ def polygons(poly):
 
 
 def extract_board(name, filename, max_error_nm=1000):
+    global pcbnew
     if pcbnew is None:
-        raise ImportError('PCB extraction needs KiCad pcbnew; use the Python interpreter shipped with KiCad')
+        try:
+            import pcbnew as module
+            pcbnew = module
+        except ImportError as exc:
+            raise ImportError('PCB extraction needs KiCad pcbnew; use the Python interpreter shipped with KiCad') from exc
     filename = Path(filename).resolve()
     if filename.suffix != '.kicad_pcb':
         raise ValueError('Only .kicad_pcb inputs are allowed')
