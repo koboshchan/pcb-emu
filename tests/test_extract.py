@@ -39,6 +39,9 @@ class CopperTests(unittest.TestCase):
     def test_real_copper_overrides_labels(self):
         r=self.extract(self.board([(2,2,pcbnew.F_Cu,'a'),(5,2,pcbnew.F_Cu,'b')],[(2,2,5,2,pcbnew.F_Cu,'a')]))
         self.assertEqual(len(r['report']['shorts']),1)
+        track=next(e for e in r['copper_geometry']['entities'] if e['kind']=='track')
+        self.assertEqual(track['start_mm'],[2.,2.])
+        self.assertAlmostEqual(track['width_mm'],.2)
     def test_opposed_smd_not_connected(self):
         r=self.extract(self.board([(2,2,pcbnew.F_Cu,'a'),(2,2,pcbnew.B_Cu,'b')]))
         self.assertEqual(r['report']['physical_net_count'],2)
