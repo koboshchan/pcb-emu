@@ -101,7 +101,12 @@ def extract_board(name, filename, max_error_nm=1000):
         components.append(comp)
     for track in board.GetTracks():
         i = uf.add()
-        meta.append({'kind': 'via' if isinstance(track, pcbnew.PCB_VIA) else 'track', 'label': track.GetNetname()})
+        if isinstance(track, pcbnew.PCB_VIA):
+            pos=track.GetPosition()
+            meta.append({'kind':'via','label':track.GetNetname(),'xy_mm':[pos.x/1e6,pos.y/1e6],'drill_mm':track.GetDrillValue()/1e6})
+        else:
+            a=track.GetStart();b=track.GetEnd()
+            meta.append({'kind':'track','label':track.GetNetname(),'start_mm':[a.x/1e6,a.y/1e6],'end_mm':[b.x/1e6,b.y/1e6],'width_mm':track.GetWidth()/1e6})
         for layer in layers:
             if track.IsOnLayer(layer):
                 for shape in item_polys(track, layer):
