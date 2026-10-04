@@ -17,24 +17,36 @@ def solve(emulator,dt,time,drive_values):
         for supply in e.supplies:supply.stamp(conduct,x,e.pin_indices,time)
         for c in e.components:
             p=e._ci[id(c)]
-            if isinstance(c,Resistor):conduct(p['1'],p['2'],1/max(c.resistance,1e-6))
+            if isinstance(c,Resistor):conduct(p['1'],p['2'],1/max(c.resistance,1e-6),getattr(c,'noise_current',0.))
             elif isinstance(c,Capacitor) and dt:
                 g=c.capacitance/dt;conduct(p['1'],p['2'],g,-g*e.cap_history.get(id(c),0.))
             elif isinstance(c,Diode):
                 a,b=p['2'],p['1'];v=x[a]-x[b];current,g=c.current_slope(v);conduct(a,b,g,current-g*v)
             elif isinstance(c,TL074):
-                for op,mi,pl in [('1','2','3'),('7','6','5'),('8','9','10'),('14','13','12')]:
+                for channel,(op,mi,pl) in enumerate([('1','2','3'),('7','6','5'),('8','9','10'),('14','13','12')]):
                     out,minus,plus=p[op],p[mi],p[pl];gain=c.gain*gain_scale
                     lo=x[p['11']]+c.headroom;hi=x[p['4']]-c.headroom
                     span=max((hi-lo)/2,1e-3);center=(hi+lo)/2
-                    z=(gain*(x[plus]-x[minus])-center)/span;tanh=np.tanh(z);target=center+span*tanh;derivative=gain*(1-tanh*tanh)
+                    offset=c.offset[channel]+c.input_noise[channel]
+                    previous=c.output_history.get(op,float(e.x[out]));history=0.
+                    if dt and c.gbw>0:
+                        factor=dt/(dt+c.gain/(2*np.pi*c.gbw))
+                        gain*=factor;history=(1-factor)*previous
+                    z=(gain*(x[plus]-x[minus]+offset)+history-center)/span
+                    tanh=np.tanh(z);target=center+span*tanh;derivative=gain*(1-tanh*tanh)
+                    if dt and c.slew_rate>0:
+                        limited=np.clip(target,previous-c.slew_rate*dt,previous+c.slew_rate*dt)
+                        if limited!=target:derivative=0.
+                        target=limited
+                    rhs[plus]-=c.bias[channel,0];rhs[minus]-=c.bias[channel,1]
+                    rhs[p['11']]+=c.bias[channel].sum()
                     # Finite output impedance makes this a KCL branch, not an ideal row replacement.
-                    go=1/50.
+                    go=1/c.output_resistance
                     entry(out,out,go);entry(out,plus,-go*derivative);entry(out,minus,go*derivative)
                     rhs[out]+=go*(target-derivative*(x[plus]-x[minus]))
             elif isinstance(c,L7805):
                 vi=x[p['1']]-x[p['2']]
-                if vi>=7:constraints[p['3']]=({p['3']:1,p['2']:-1},5.)
+                if vi>=7:constraints[p['3']]=({p['3']:1,p['2']:-1},getattr(c,'regulated_voltage',5.))
                 elif vi>=2:constraints[p['3']]=({p['3']:1,p['1']:-1},-2.)
                 else:constraints[p['3']]=({p['3']:1,p['2']:-1},0.)
             elif isinstance(c,AHCT595):
@@ -50,45 +62,18 @@ def solve(emulator,dt,time,drive_values):
             rhs[r]=value
             for col,val in co.items():rr.append(r);cc.append(col);vv.append(val)
         A=csc_matrix((vv,(rr,cc)),shape=(N,N));return A,rhs
-    if np.max(np.abs(x),initial=0)>1e-8:
-        # A previous accepted operating point is usually an excellent warm start.
-        try:
-            for iteration in range(35):
-                A,b=assemble(x,1.);residual=A@x-b
-                weights=np.maximum(np.asarray(abs(A).sum(axis=1)).ravel(),1e-5)
-                baseline=np.linalg.norm(residual/weights);delta=spsolve(A,-residual)
-                if not np.isfinite(delta).all():break
-                alpha=1.
-                for backtrack in range(24):
-                    trial=x+alpha*delta;At,bt=assemble(trial,1.)
-                    merit=np.linalg.norm((At@trial-bt)/weights)
-                    if merit<=(1-1e-4*alpha)*baseline or merit<1e-10:break
-                    alpha*=.5
-                x=trial
-                if np.max(np.abs(alpha*delta),initial=0)<1e-7 and merit<1e-8:
-                    for supply in e.supplies:supply.stamp(lambda *a:None,x,e.pin_indices,time)
-                    return x
-        except (ValueError,RuntimeError):pass
-        x=e.x.copy()
-    for scale in [1e-4,1e-3,1e-2,.1,1.]:
-        for iteration in range(100):
-            A,b=assemble(x,scale);residual=A@x-b
-            # Fixed residual scaling within this Newton step; no derivative-based fake decrease.
-            weights=np.maximum(np.asarray(abs(A).sum(axis=1)).ravel(),1e-5)
-            baseline=np.linalg.norm(residual/weights)
-            delta=spsolve(A,-residual)
-            if not np.isfinite(delta).all():raise RuntimeError('Nonfinite Newton step')
-            alpha=1.
-            for backtrack in range(24):
-                trial=x+alpha*delta;At,bt=assemble(trial,scale)
-                merit=np.linalg.norm((At@trial-bt)/weights)
-                if merit<=(1-1e-4*alpha)*baseline or merit<1e-10:break
-                alpha*=.5
-            x=trial
-            if np.max(np.abs(alpha*delta),initial=0)<1e-7 and merit<1e-8:break
+    from .newton import newton,continuation,NewtonFailure
+    try:
+        if np.max(np.abs(x),initial=0)>1e-8:
+            try:
+                x=newton(assemble,x,1.,max_iterations=35)
+            except NewtonFailure:
+                x=continuation(assemble,np.zeros(N))
         else:
-            from .core import ConvergenceError
-            raise ConvergenceError(f'Newton failed scale={scale:g} residual={merit:g} at t={time:g}')
+            x=continuation(assemble,x)
+    except NewtonFailure as exc:
+        from .core import ConvergenceError
+        raise ConvergenceError(f'{exc} at t={time:g}') from exc
     # Refresh supply meter at accepted final solution.
     for supply in e.supplies:supply.stamp(lambda *a:None,x,e.pin_indices,time)
     return x

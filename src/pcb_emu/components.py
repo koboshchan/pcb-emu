@@ -28,18 +28,21 @@ class Capacitor(Component):
         super().__init__(*a);self.capacitance=number(self.value.split()[0])
 class Diode(Component):
     def __init__(self,*a):
-        super().__init__(*a);self.anode=self.pins['2'];self.cathode=self.pins['1'];self.isat=2.52e-9;self.nvt=.045
+        super().__init__(*a);self.anode=self.pins['2'];self.cathode=self.pins['1'];self.isat=2.52e-9;self.nvt=.045;self.vf_shift=0.
     def current_slope(self,v):
         # Exponential with linear extension above 0.9 V to keep Newton finite.
+        v=v-self.vf_shift;threshold=20*self.nvt
         z=np.minimum(v/self.nvt,20.);e=np.exp(z)
         slope=self.isat/self.nvt*e
-        current=self.isat*(e-1)+slope*np.maximum(v-.9,0)
+        current=self.isat*(e-1)+slope*np.maximum(v-threshold,0)
         return current,slope
 class TL074(Component):
     def __init__(self,*a):
         super().__init__(*a)
         self.channels=[tuple(self.pins[str(p)] for p in pins) for pins in [(1,2,3),(7,6,5),(8,9,10),(14,13,12)]]
         self.vplus=self.pins['4'];self.vminus=self.pins['11'];self.gain=1e5;self.headroom=1.5
+        self.offset=np.zeros(4);self.bias=np.zeros((4,2));self.gbw=0.;self.slew_rate=0.;self.output_resistance=50.
+        self.output_history={};self.input_noise=np.zeros(4)
 class L7805(Component):
     def target(self,read):
         g=read(self.pins['2']);return g+np.clip(read(self.pins['1'])-g-2,0,5)

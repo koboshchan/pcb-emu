@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from collections.abc import Mapping
 import numpy as np
 from .extract import extract_board
-from .components import Capacitor, AHCT595, make_component
+from .components import Capacitor, AHCT595, TL074, make_component
 
 @dataclass(frozen=True)
 class Pin:
@@ -120,7 +120,11 @@ class Emulator:
             for i,v in drive_values.items(): digital_x[i]=v
             samples=[(c,c.sample(self._digital_read(c,digital_x))) for c in self.components if isinstance(c,AHCT595)]
             for c,sample in samples: c.advance(sample)
+        if hasattr(self,'variation'):self.variation.sample_noise(self,t)
         self.x=solve(self,dt,t,drive_values)
+        for c in self.components:
+            if isinstance(c,TL074):
+                c.output_history={op:float(self.x[self._ci[id(c)][op]]) for op in ('1','7','8','14')}
         if dt:
             for c in self.components:
                 if isinstance(c,Capacitor):
