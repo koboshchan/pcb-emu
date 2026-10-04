@@ -76,7 +76,7 @@ def make_component(board,metadata):
     elif value=='TL074':kind=TL074
     elif value.startswith('74AHCT595'):kind=AHCT595
     elif value.startswith('L7805'):kind=L7805
-    elif ref=='JAD' and 'ADC' in ' '.join(p['label'] for p in metadata['pads'].values()):kind=PicoADC
+    elif ref.startswith('J') and any(p.get('label','').startswith('ADC') for p in metadata['pads'].values()):kind=PicoADC
     elif ref.startswith('J'):kind=Connector
     elif 'MountingHole' in value or not metadata['pads']:kind=MountingHole
     else:raise ValueError(f'Unsupported component {board.name}.{ref} {value} {footprint}')
