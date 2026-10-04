@@ -11,7 +11,6 @@ dependencies = ["numpy>=1.26", "scipy>=1.11", "shapely>=2.0"]
 license = "MIT"
 
 [project.optional-dependencies]
-gpu = ["torch>=2.2", "cupy-cuda12x>=13"]
 kicad = [] # Install pcbnew with KiCad; it is not distributed on PyPI.
 test = ["pytest>=8"]
 
