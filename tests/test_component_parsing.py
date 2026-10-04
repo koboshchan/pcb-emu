@@ -1,5 +1,17 @@
 import pytest
-from pcb_emu.components import Capacitor,MountingHole,make_component
+from pcb_emu.components import Capacitor,Resistor,MountingHole,make_component,number
+
+@pytest.mark.parametrize('value,expected',[('4.7 kΩ',4700),('10 kohm',10000),('10 nF',1e-8),('1 uF',1e-6),('10 mH',.01),('1 uH',1e-6),('10 n F',1e-8)])
+def test_shared_passive_unit_parser(value,expected):
+    assert number(value)==pytest.approx(expected,rel=1e-12,abs=0)
+
+
+@pytest.mark.parametrize('value,expected',[('4.7 kΩ',4700),('10 kohm',10000)])
+def test_resistor_preserves_spaced_units(value,expected):
+    c=make_component(Named(),metadata('R1',value,{'1':'a','2':'b'}))
+    assert isinstance(c,Resistor)
+    assert c.resistance==pytest.approx(expected)
+
 
 class Named:
     name='regression'
