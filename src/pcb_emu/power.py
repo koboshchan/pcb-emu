@@ -29,7 +29,7 @@ class PowerSupply(Board):
         for k,c in self.channels.items():
             a=index[self.pin(k+'+').key];b=index[self.pin(k+'-').key];v=x[a]-x[b]
             if not self.enabled:c.update(current=0.,power=0.,mode='OFF');continue
-            target=c['voltage']+c['ripple']*np.sin(2*np.pi*c['frequency']*time)
+            target=c['voltage']+c['ripple']*np.sin(2*np.pi*c['frequency']*time)+c.get('noise',0.)
             r=max(c['resistance'],1e-5);unlimited=(target-v)/r
             current=float(np.clip(unlimited,-c['limit'],c['limit']))
             g=1/r if abs(unlimited)<=c['limit'] else 0.

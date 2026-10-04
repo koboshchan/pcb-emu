@@ -67,6 +67,10 @@ Approximate trace/via capacitance and inductance inventories are not stamped int
 
 ADC defaults use ideal input impedance, endpoint sampling and quantization, not switched-capacitor loading or delta-sigma history. Skipped continuous conversion periods sample current endpoint voltage. Electrical I2C edges, oscillator error and pull-up loading are absent.
 
+## Seeded variations
+
+`Variation(...).apply(emu, seed)` samples resistor/capacitor tolerances, TL074 offsets/bias/gain/GBW/slew, diode shift, regulator error, ambient effects and ADS1115 errors. Noise is frozen during each solve and deterministic at a given time. Use fresh boards for each physical sample. See [VARIATION.md](VARIATION.md) for distributions, datasheet sources and the substantial behavioral assumptions. DC does not measure capacitor, bandwidth or slew sensitivity.
+
 ## Linear batch backends
 
 `pcb_emu.backend.ArrayBackend('auto')` offers SciPy, PyTorch and CuPy factorization for shared-matrix batches. Explicit unavailable CUDA requests fail. GPU optional dependencies are separate from the core package. `python -m pcb_emu.backend --n 400 --batch 1000` measures synthetic residuals and timings, not complete nonlinear circuit throughput. The nonlinear solver currently uses CPU sparse algebra.

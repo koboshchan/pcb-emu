@@ -26,6 +26,7 @@ class ADS1115:
             'components': [{'ref': 'J_ADC', 'value': 'Virtual ADS1115',
                             'footprint': 'Virtual:ADS1115', 'pads': pads}]})
         self.emu = None
+        self.gain_error=0.;self.offset_error=0.;self.inl_error=0.;self.noise_rms=0.;self.noise_seed=0
         self.reset()
 
     @property
@@ -80,7 +81,15 @@ class ADS1115:
             return value
         differential = voltage(positive) - voltage(negative)
         fs = self.RANGES[(self.active_config >> 9) & 7]
-        code = max(-32768, min(32767, round(differential * 32768 / fs)))
+        ideal=differential*32768/fs
+        # Explicit bounded sinusoidal INL assumption, not a measured code map.
+        value=ideal*(1+self.gain_error)+self.offset_error+self.inl_error*math.sin(math.pi*ideal/32768)
+        if self.noise_rms:
+            import hashlib,random
+            key=f'{self.noise_seed}:{self.board.name}:{self.now.hex()}:{self.active_config}'
+            rng=random.Random(int.from_bytes(hashlib.sha256(key.encode()).digest()[:8],'big'))
+            value+=rng.gauss(0,self.noise_rms)
+        code = max(-32768, min(32767, round(value)))
         self.registers[0] = code & 0xFFFF
 
     def advance(self, now):
