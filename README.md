@@ -100,6 +100,14 @@ Firmware is CPython executing trusted MicroPython-style source. Fake `machine`, 
 
 Pin IRQs, PWM, ADC, SPI, I2C, UART and Timer interfaces are present. ADC returns 12-bit or scaled `read_u16` values. Buses require explicit attached callbacks, rather than invented devices. PWM is sampled digital voltage at simulation service times; choose sufficient timing granularity. Power pins get explicit ideal defaults and do not implement Pico power-regulator dynamics. `examples/firmware_example.py` shifts 64 serial bits and reads the three available ADC pins. The PCB has ten separate analog output wires and no mux; reading all ten from one Pico needs added off-board hardware or explicit rewiring.
 
+`ADS1115` and `ADS1115Bus` provide an explicit off-board solution. `examples/ads1115_stack.py` adds three virtual ADC modules with ADDR tied to GND, VDD and SDA for addresses 0x48, 0x49 and 0x4A. All use 3.3 V and common ground, GP0 SDA and GP1 SCL. JAD pins 1–4 connect to the first module's A0–A3, pins 5–8 to the second, and pins 9–10 to the third's A0–A1. JAD 11 and 12 are ground. The existing motherboard divider/clamps are retained, not replaced or duplicated. Real modules need I2C pull-ups to 3.3 V. No PCB files or footprints are changed.
+
+`examples/ads1115_firmware.py` reads all ten single-ended scores through normal MicroPython I2C register transactions, polls OS readiness, and prints their argmax. It selects the same ±4.096 V PGA on every channel, 860 samples/s and single-shot mode. Conversion values are held until nominal 1/data-rate time has elapsed. Register pointers, big-endian signed codes, MUX and all PGA/rate settings are modeled. Comparator/ALERT requests raise an explicit unsupported error. Supply loss resets registers; selected inputs outside GND..VDD raise an error rather than pretending the PGA or existing diode makes overvoltage safe.
+
+The ADC has ideal input impedance and quantization. It does not model switched-capacitor loading, delta-sigma integration, noise, oscillator error, ALERT or electrical I2C edges. Conversions sample the solved voltage at completion; skipped continuous periods use the current endpoint, not historical waveform integration. ADCs advance after solver substeps. Firmware remains trusted full-privilege CPython, not a sandbox.
+
+For the actual extracted PCB stack, run `PYTHONPATH=src:examples python examples/ads1115_demo.py --extracted runs/extracted_geometry.json --images data/t10k-images-idx3-ubyte.gz --index 2 --out runs/ads1115_readout.json`. This validates source hashes before and after the run. The completed test read ten physical JAD voltages through three ADCs and Pico firmware, predicting 1, matching the nominal analog prediction. JAD voltages ranged from 1.28765 V to 1.83826 V. This is one held averaged-PWM input with capacitors initialized at their solved operating point, not a new 1000-image accuracy result or hardware validation.
+
 ## Batch linear algebra and CUDA
 
 ```python

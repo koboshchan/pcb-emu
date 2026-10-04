@@ -41,7 +41,7 @@ class Emulator:
         if not np.isfinite(tick) or tick<=0: raise ValueError('tick must be positive and finite')
         self.tick=float(tick); self.ideal_copper=ideal_copper
         self.contact_resistance=contact_resistance; self.jumper_resistance=jumper_resistance; self.temperature=temperature
-        self.supplies=[]; self.picos=[]; self.boards={}; self.connections=[]; self.drives={}; self.pending={}
+        self.supplies=[]; self.picos=[]; self.peripherals=[]; self.boards={}; self.connections=[]; self.drives={}; self.pending={}
         self.time=0.; self.tick_number=0; self._callback=False; self._compiled=False; self.cap_history={}; self._override={}
     def add_board(self,path,name=None):
         board=path if isinstance(path,Board) else Board(path,name or f'board{len(self.boards)}')
@@ -125,6 +125,7 @@ class Emulator:
             for c in self.components:
                 if isinstance(c,Capacitor):
                     p=self._ci[id(c)]; self.cap_history[id(c)]=self.x[p['1']]-self.x[p['2']]
+        for peripheral in self.peripherals: peripheral.advance(t)
         return self.x
     def dc(self): return self._solve()
     def run(self,ticks=1,callback=None,*,substeps=1):
