@@ -5,7 +5,7 @@ import numpy as np
 
 def number(value):
     text=value.strip().replace('Ω','').replace('ohm','').replace('µ','u').replace('μ','u')
-    text=re.sub(r'[FV]$', '', text)
+    text=re.sub(r'[FVH]$', '', text).strip()
     m=re.fullmatch(r'([\d.]+)\s*([pnumkKMG]?)(?:[Rr])?',text)
     if not m:
         m=re.fullmatch(r'(\d+)([RrKkMm])(\d+)',text)
