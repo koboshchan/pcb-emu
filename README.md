@@ -69,7 +69,7 @@ ADC defaults use ideal input impedance, endpoint sampling and quantization, not 
 
 ## Seeded variations
 
-`Variation(...).apply(emu, seed)` samples resistor/capacitor tolerances, TL074 offsets/bias/gain/GBW/slew, diode shift, regulator error, ambient effects and ADS1115 errors. Noise is frozen during each solve and deterministic at a given time. Use fresh boards for each physical sample. See [VARIATION.md](VARIATION.md) for distributions, datasheet sources and the substantial behavioral assumptions. DC does not measure capacitor, bandwidth or slew sensitivity.
+`Variation(...).apply(emu, seed)` samples resistor/capacitor tolerances, TL074 offsets/bias/gain/GBW/slew, diode shift, regulator error, ambient effects and ADS1115 errors. Noise is frozen during each solve and deterministic at a given time. Use fresh boards for each physical sample. Run `PYTHONPATH=src:examples python examples/variation.py --samples 100` for a seeded divider Monte Carlo. See [VARIATION.md](VARIATION.md) for distributions, datasheet sources and the substantial behavioral assumptions. DC does not measure capacitor, bandwidth or slew sensitivity.
 
 ## Linear batch backends
 
