@@ -115,29 +115,18 @@ def test_comparator_and_pointer_validation():
     assert code(adc, 0) == 0
 
 
-def test_real_pico_reads_ten_virtual_header_scores():
+def test_real_pico_reads_generic_adc_example():
     import importlib.util
-    path = Path(__file__).parents[1] / 'examples/ads1115_stack.py'
-    spec = importlib.util.spec_from_file_location('ads_stack', path)
+    path = Path(__file__).parents[1] / 'examples/pico_ads1115.py'
+    spec = importlib.util.spec_from_file_location('adc_example', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    pads = {str(i): {'node': f'MB:jad{i}', 'label': f'ADC_{i-1}' if i <= 10 else 'GND'}
-            for i in range(1, 13)}
-    board = Board(name='MB', extracted={'nets': [{'node': p['node']} for p in pads.values()],
-        'components': [{'ref': 'JAD', 'value': 'Virtual connector', 'footprint': 'Virtual:12', 'pads': pads}]})
     emu = Emulator()
-    emu.add_board(board)
-    values = [.2, .3, .4, .5, .6, .7, .8, 2.5, 1., 1.1]
-    for i, value in enumerate(values, 1):
-        emu.drive(board.pin('JAD', str(i)), value)
-    emu.drive(board.pin('JAD', '11'), 0)
-    emu.drive(board.pin('JAD', '12'), 0)
-    pico, devices = module.attach_readout(emu, board)
+    pico, device = module.attach_readout(emu, voltage=1.25)
     try:
-        emu.run(ticks=40)
+        emu.run(ticks=5)
         assert pico.done
-        assert pico.globals['prediction'] == 7
-        assert pico.globals['scores'] == [round(v * 8000) for v in values]
-        assert [d.address for d in devices] == [0x48, 0x49, 0x4A]
+        assert pico.globals['reading'] == 10000
+        assert device.address == 0x48
     finally:
         pico.close()

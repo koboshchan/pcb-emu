@@ -180,7 +180,7 @@ class _Factor:
 
 
 def benchmark(n=400, batch=1000, repeats=5, warmup=2, backends=('numpy', 'torch', 'cupy')):
-    """Synthetic diagonally dominant shared matrix, not a circuit/MNIST claim.
+    """Synthetic diagonally dominant shared matrix, not a circuit benchmark.
 
     Timings include transfers, finite checks and NumPy output. Factor-only,
     cached-factor solve and factor+solve are separately measured.
