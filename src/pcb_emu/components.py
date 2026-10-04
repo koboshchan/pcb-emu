@@ -25,7 +25,7 @@ class Resistor(Component):
         super().__init__(*a);self.resistance=number(self.value)
 class Capacitor(Component):
     def __init__(self,*a):
-        super().__init__(*a);self.capacitance=number(self.value.split()[0])
+        super().__init__(*a);self.capacitance=number(self.value)
 class Diode(Component):
     def __init__(self,*a):
         super().__init__(*a);self.anode=self.pins['2'];self.cathode=self.pins['1'];self.isat=2.52e-9;self.nvt=.045;self.vf_shift=0.
@@ -73,13 +73,13 @@ class PicoADC(Connector):
 
 def make_component(board,metadata):
     value=metadata['value'];ref=metadata['ref'];footprint=metadata['footprint']
-    if ref.startswith('R'):kind=Resistor
+    if 'MountingHole' in value or 'MountingHole' in footprint or not metadata['pads']:kind=MountingHole
+    elif ref.startswith('R'):kind=Resistor
     elif ref.startswith('C'):kind=Capacitor
     elif value=='1N4148W':kind=Diode
     elif value=='TL074':kind=TL074
     elif value.startswith('74AHCT595'):kind=AHCT595
     elif value.startswith('L7805'):kind=L7805
     elif ref.startswith('J'):kind=Connector
-    elif 'MountingHole' in value or not metadata['pads']:kind=MountingHole
     else:raise ValueError(f'Unsupported component {board.name}.{ref} {value} {footprint}')
     return kind(board,metadata)
