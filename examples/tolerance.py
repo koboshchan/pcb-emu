@@ -13,7 +13,9 @@ def main():
     rng=np.random.default_rng(a.seed);rows=[]
     for i in range(a.runs):
         for c,attr,value in parameters:setattr(c,attr,value*(1+rng.uniform(-a.tolerance,a.tolerance)))
-        result=classify(e,image);rows.append({'iteration':i,'prediction':result['class'],'adc':result['adc'].tolist()})
+        try:
+            result=classify(e,image);rows.append({'iteration':i,'prediction':result['class'],'adc':result['adc'].tolist()})
+        except Exception as ex:rows.append({'iteration':i,'error':type(ex).__name__+': '+str(ex)})
     report={'image_index':a.index,'runs':a.runs,'seed':a.seed,'uniform_relative_tolerance':a.tolerance,'mode':'DC average PWM, ideal copper with finite contacts; capacitor variation has no effect in DC; no tuning','samples':rows}
     a.out.parent.mkdir(parents=True,exist_ok=True);a.out.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 
