@@ -48,7 +48,7 @@ For faster edges, `emu.drive(pin, lambda t: ...)` evaluates a precomputed wavefo
 
 Each component has a class. Currently supported PCB values include resistors, capacitors, 1N4148W, TL074, 74AHCT595 and L7805. Unsupported electrical parts fail explicitly. The AHCT595 models serial shifting, latch clocks, reset, serial cascade output and output enable. Digital ICs sample the same old-state voltage snapshot, preventing chain order from shifting multiple stages in one event.
 
-The solver stamps its own nodal equations, solves them with SciPy sparse linear algebra, linearizes diodes, and uses backward Euler for capacitors. Op amps use finite gain and smooth rail clipping. These are simplified behavioral models without input bias/noise, realistic output current limiting, slew rate or dominant-pole dynamics. DC convergence of the entire neural PCB is not yet established; failures raise `ConvergenceError`, not a guessed voltage.
+The solver stamps its own nodal equations, solves them with SciPy sparse linear algebra, linearizes diodes, and uses backward Euler for capacitors. An analytic Jacobian, residual-tested line search and finite-gain continuation stabilize nonlinear solving. Op amps have smooth rail clipping and a behavioral 50 Ω output resistance. These are simplified behavioral models without input bias/noise, realistic output current limiting, slew rate or dominant-pole dynamics. Full-stack DC solving now converges; 1000-image accuracy testing is running. Failed solves raise `ConvergenceError`, not a guessed voltage.
 
 `emu.dc()` finds a static solution. `emu.run()` updates capacitor histories and digital state. Zero-ohm resistors currently use a small numerical resistance. Node-to-ground leakage is 1 pS for floating-node regularization.
 
@@ -80,4 +80,36 @@ This is a behavioral source with configurable series resistance, voltage ripple 
 
 ## Security
 
-PCB parsing and user firmware should only use trusted files. Any forthcoming CPython firmware runner executes actual Python with process permissions; it is not a sandbox. Never run untrusted firmware on a host containing secrets.
+PCB parsing and user firmware should only use trusted files. The CPython firmware runner executes actual Python with process permissions; it is not a sandbox. Never run untrusted firmware on a host containing secrets.
+
+## Pico firmware
+
+```python
+pico = emu.add_pico(code='main.py')
+emu.connect(pico.pin('GP0'), mb.pin('JSPI', '3'))
+emu.connect(pico.pin('GP1'), mb.pin('JSPI', '4'))
+emu.connect(pico.pin('GP2'), mb.pin('JSPI', '5'))
+emu.connect(pico.pin('GP26'), mb.pin('JAD', '1'))
+emu.run(ticks=100)
+pico.close()
+```
+
+The virtual Pico exposes the real 40-pin header, GP0–GP22 and GP26–GP28, plus GND, AGND, RUN, ADC_VREF, 3V3, 3V3_EN, VSYS and VBUS. GP23–25 are not exposed on the header. To attach to a PCB footprint instead, pass `board=...` and `ref=...`; the footprint must actually have pads 1–40. The neural PCB has no Pico footprint, so use the off-board virtual header.
+
+Firmware is CPython executing trusted MicroPython-style source. Fake `machine`, `time`/`utime` and `rp2` imports are local to the runner. Pin operations and sleeps rendezvous with simulated time; bitbang pin transitions settle individually. CPU-only loops without pin operations or sleep cannot be preempted and produce a watchdog error. This is neither cycle-accurate RP2040 hardware nor a MicroPython VM. There is no substantive PIO emulation.
+
+Pin IRQs, PWM, ADC, SPI, I2C, UART and Timer interfaces are present. ADC returns 12-bit or scaled `read_u16` values. Buses require explicit attached callbacks, rather than invented devices. PWM is sampled digital voltage at simulation service times; choose sufficient timing granularity. Power pins get explicit ideal defaults and do not implement Pico power-regulator dynamics. `examples/firmware_example.py` shifts 64 serial bits and reads the three available ADC pins. The PCB has ten separate analog output wires and no mux; reading all ten from one Pico needs added off-board hardware or explicit rewiring.
+
+## Batch linear algebra and CUDA
+
+```python
+from pcb_emu.backend import ArrayBackend
+
+backend = ArrayBackend('auto')
+factor = backend.factor(A)  # A is float64 N×N
+voltages = factor.solve(B)  # B has shape batch×N
+```
+
+The backend supports NumPy/SciPy, PyTorch CPU/CUDA and CuPy CUDA. Explicit CUDA requests fail if unavailable rather than silently falling back. `auto` tries functioning CUDA installations. The `[gpu]` extra includes Torch and CuPy for CUDA 12; for other CUDA environments install the appropriate optional library manually. Reuse a factorization for repeated shared-matrix right-hand sides.
+
+Run `python -m pcb_emu.backend --n 400 --batch 1000` for synthetic float64 timings and residual checks. A real RTX 4070 SUPER test measured 1.39× faster cached 1000-RHS solves than CPU with residual below 1e-15. This measures linear algebra, not end-to-end neural PCB classification. The nonlinear emulator presently uses the CPU sparse solver one state at a time. Vectorized nonlinear batches, GPU PWM simulation and Monte Carlo orchestration are not yet integrated.
