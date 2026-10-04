@@ -86,7 +86,7 @@ class ADS1115:
         value=ideal*(1+self.gain_error)+self.offset_error+self.inl_error*math.sin(math.pi*ideal/32768)
         if self.noise_rms:
             import hashlib,random
-            key=f'{self.noise_seed}:{self.board.name}:{self.now.hex()}:{self.active_config}'
+            key=f'{self.noise_seed}:{self.board.name}:{float(self.now).hex()}:{self.active_config}'
             rng=random.Random(int.from_bytes(hashlib.sha256(key.encode()).digest()[:8],'big'))
             value+=rng.gauss(0,self.noise_rms)
         code = max(-32768, min(32767, round(value)))
