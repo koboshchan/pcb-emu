@@ -70,3 +70,8 @@ All source SHA256 hashes were checked against extracted data and verified unchan
 | DC1d | `bfd4a7115bb734fb9704616ec69f11c57c2a2fcd538f8d11849a982725b841d7` |
 | DC2 | `f1fedb2c5fdc6529010a41f2048c27bb490a33e6c16147e1d7a03c1b4060bc15` |
 | DC3 | `fc5b97c1068092910be16ea4e342ae0c0c8524affe952ab55fb664f5fcde4a1e` |
+
+Additional off-board readout test used three ADS1115 modules at 0x48/0x49/0x4A, virtual Pico GP0/GP1 I2C, and ten actual JAD wires. Trusted firmware read image index 2 using single-shot conversions, ±4.096 V PGA and 860 samples/s. Codes were `[10301,14706,11596,11355,12794,11496,11563,12045,11455,11420]`; Pico argmax was 1, matching nominal analog argmax. All eight source hashes were checked before and after. Local raw report is `runs/ads1115_readout.json`. The suite now passes 70 tests with 2 GPU skips.
+
+This additional test does not replace the 1000-image result. It uses averaged-PWM input and capacitor history initialized at the DC solution. ADC sampling is ideal endpoint quantization with no input loading, delta-sigma filter or electrical I2C timing. No source boards were changed, and no extra divider was inserted. The existing diode clamp is not a guarantee against overvoltage; this ADC model rejects selected input voltages outside its supply rails.
+
