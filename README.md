@@ -71,9 +71,9 @@ ADC defaults use ideal input impedance, endpoint sampling and quantization, not 
 
 `Variation(...).apply(emu, seed)` samples resistor/capacitor tolerances, TL074 offsets/bias/gain/GBW/slew, diode shift, regulator error, ambient effects and ADS1115 errors. Noise is frozen during each solve and deterministic at a given time. Use fresh boards for each physical sample. Run `PYTHONPATH=src:examples python examples/variation.py --samples 100` for a seeded divider Monte Carlo. See [VARIATION.md](VARIATION.md) for distributions, datasheet sources and the substantial behavioral assumptions. DC does not measure capacitor, bandwidth or slew sensitivity.
 
-## Linear batch backends
+## CPU linear algebra
 
-`pcb_emu.backend.ArrayBackend('auto')` offers SciPy, PyTorch and CuPy factorization for shared-matrix batches. Explicit unavailable CUDA requests fail. GPU optional dependencies are separate from the core package. `python -m pcb_emu.backend --n 400 --batch 1000` measures synthetic residuals and timings, not complete nonlinear circuit throughput. The nonlinear solver currently uses CPU sparse algebra.
+The simulator uses NumPy and SciPy CPU algebra. `pcb_emu.backend.ArrayBackend()` also supports reusable LU factors with multiple right-hand sides for callers that already have a linear matrix.
 
 ## Security
 
