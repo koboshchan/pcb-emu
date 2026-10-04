@@ -46,6 +46,10 @@ A real read-only RTX 4070 SUPER test used float64, a 400×400 dense matrix and 1
 
 This is a linear shared-factor benchmark only. The nonlinear circuit/classification loop runs on CPU and is not GPU-vectorized. Local raw timing report is `runs/gpu_benchmark.json`.
 
+## Seeded tolerance check
+
+Ten seeded ±1% uniform component-value variations on test image 0 all failed nonlinear convergence. This does not produce a valid tolerance accuracy estimate. Image 0 also failed in the nominal 1000-image test, so this specific check cannot distinguish tolerance sensitivity from the existing solver failure. The failures are recorded in `runs/tolerance.json`; none were assigned fabricated predictions.
+
 ## Tests and package
 
 37 tests pass; two accelerator-only tests skip on this host. Tests cover physical copper versus labels, opposite-layer SMD separation, vias, divider, diode, op-amp follower, RC, snapshot immutability, substep waveforms, next-tick callback drives, digital cascade timing, PSU CV/CC, trusted firmware execution, geometry resistance and backend multiple-RHS solves. A local wheel builds and imports. No PyPI upload or publishing workflow was created or run.
