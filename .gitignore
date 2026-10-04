@@ -7,3 +7,5 @@ build/
 .venv/
 data/
 runs/
+*.kicad_prl
+*.kicad_pro
