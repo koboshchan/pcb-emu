@@ -2,9 +2,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import pcbnew
+try:
+    import pcbnew
+except ImportError:
+    pcbnew = None
 from pcb_emu.extract import extract_board
 
+@unittest.skipIf(pcbnew is None, 'KiCad pcbnew is not installed')
 class CopperTests(unittest.TestCase):
     def board(self, positions, tracks=(), via=False):
         b=pcbnew.BOARD()
