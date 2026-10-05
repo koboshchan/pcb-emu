@@ -53,7 +53,7 @@ AHCT595 implements serial shift, cascade, reset, output enable and latch. Digita
 
 Extraction intersects pads, tracks, vias and zones refilled in memory. Source files are SHA256 checked and never saved. Opposed SMD pads do not connect; through-hole pads and vias connect layers.
 
-`ideal_copper=True` merges actual connected copper into ideal nodes, preserving finite connector/wire resistances. `ideal_copper=False` builds a distributed resistor graph. Copper defaults to 35 micrometers; via plating and plane spreading are assumptions. Planes use star spreading resistance, not a field mesh. Connector contact and jumper defaults are 20 and 12 milliohms. Temperature affects copper resistivity.
+`ideal_copper=True` merges actual connected copper into ideal nodes, preserving finite connector/wire resistances. `ideal_copper=False` builds a distributed resistor graph. Via barrels have a separate tap on each traversed copper layer, including blind/buried spans. Saved KiCad stackup thicknesses set copper layer depths and per-layer copper thickness; otherwise layers are uniformly spaced across the board thickness and copper defaults to 35 micrometers. Via plating and plane spreading are assumptions. Planes use star spreading resistance, not a field mesh. Connector contact and jumper defaults are 20 and 12 milliohms. Temperature affects copper resistivity. DNP/DNI/DNF values and KiCad DNP flags leave the physical pads present but omit the electrical component stamp.
 
 Approximate trace/via capacitance and inductance inventories are not stamped into transient equations. Distributed RLC, transmission lines, skin effect, return-path coupling and thermal solving are not implemented.
 

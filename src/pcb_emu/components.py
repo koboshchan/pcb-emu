@@ -74,6 +74,7 @@ class PicoADC(Connector):
 def make_component(board,metadata):
     value=metadata['value'];ref=metadata['ref'];footprint=metadata['footprint']
     if 'MountingHole' in value or 'MountingHole' in footprint or not metadata['pads']:kind=MountingHole
+    elif metadata.get('dnp', False) or value.strip().upper() in ('DNP', 'DNI', 'DNF'):kind=Connector
     elif ref.startswith('R'):kind=Resistor
     elif ref.startswith('C'):kind=Capacitor
     elif value=='1N4148W':kind=Diode
