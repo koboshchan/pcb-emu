@@ -16,7 +16,11 @@ def newton(assemble,initial,scale,max_iterations=80):
         delta=spsolve(matrix,-residual)
         if not np.isfinite(delta).all():raise NewtonFailure('nonfinite Newton step')
         # Test the full Newton correction, never the artificially small damped step.
-        if np.max(np.abs(delta),initial=0)<1e-7 and np.max(np.abs(residual),initial=0)<1e-8:
+        # A distributed copper matrix contains large conductances. Its raw KCL
+        # residual can exceed a fixed absolute threshold solely from cancellation.
+        # Bound that roundoff per row without relaxing the voltage-step test.
+        roundoff=64*np.finfo(float).eps*(abs(matrix)@abs(x)+abs(rhs))
+        if np.max(np.abs(delta),initial=0)<1e-7 and np.all(np.abs(residual)<=1e-8+roundoff):
             return x
         alpha=1.
         for _ in range(24):
