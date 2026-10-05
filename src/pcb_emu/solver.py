@@ -8,11 +8,12 @@ from .components import Resistor,Capacitor,Diode,TL074,L7805,AHCT595
 def solve(emulator,dt,time,drive_values):
     e=emulator;N=len(e.x);x=e.x.copy()
     def assemble(x,gain_scale):
-        rows=[];cols=[];vals=[];rhs=np.zeros(N);constraints={}
+        rows=[];cols=[];vals=[];rhs=np.zeros(N);constraints={};kcl=1e-12*x.copy()
         def entry(a,b,v):rows.append(a);cols.append(b);vals.append(v)
         for i in range(N):entry(i,i,1e-12)
         def conduct(a,b,g,current=0.):
             entry(a,a,g);entry(b,b,g);entry(a,b,-g);entry(b,a,-g);rhs[a]-=current;rhs[b]+=current
+            flow=g*(x[a]-x[b])+current;kcl[a]+=flow;kcl[b]-=flow
         for a,b,r in e.edges:conduct(e.indices[a],e.indices[b],1/max(r,1e-8))
         for supply in e.supplies:supply.stamp(conduct,x,e.pin_indices,time)
         for c in e.components:
@@ -40,10 +41,13 @@ def solve(emulator,dt,time,drive_values):
                         target=limited
                     rhs[plus]-=c.bias[channel,0];rhs[minus]-=c.bias[channel,1]
                     rhs[p['11']]+=c.bias[channel].sum()
+                    kcl[plus]+=c.bias[channel,0];kcl[minus]+=c.bias[channel,1]
+                    kcl[p['11']]-=c.bias[channel].sum()
                     # Finite output impedance makes this a KCL branch, not an ideal row replacement.
                     go=1/c.output_resistance
                     entry(out,out,go);entry(out,plus,-go*derivative);entry(out,minus,go*derivative)
                     rhs[out]+=go*(target-derivative*(x[plus]-x[minus]))
+                    kcl[out]+=go*(x[out]-target)
             elif isinstance(c,L7805):
                 vi=x[p['1']]-x[p['2']]
                 if vi>=7:constraints[p['3']]=({p['3']:1,p['2']:-1},getattr(c,'regulated_voltage',5.))
@@ -59,9 +63,10 @@ def solve(emulator,dt,time,drive_values):
         keep=[j for j,r in enumerate(rows) if r not in constraints]
         rr=[rows[j] for j in keep];cc=[cols[j] for j in keep];vv=[vals[j] for j in keep]
         for r,(co,value) in constraints.items():
-            rhs[r]=value
+            rhs[r]=value;kcl[r]=sum(val*x[col] for col,val in co.items())-value
             for col,val in co.items():rr.append(r);cc.append(col);vv.append(val)
-        A=csc_matrix((vv,(rr,cc)),shape=(N,N));return A,rhs
+        A=csc_matrix((vv,(rr,cc)),shape=(N,N));A._pcb_emu_residual=kcl
+        return A,rhs
     from .newton import newton,continuation,NewtonFailure
     try:
         if np.max(np.abs(x),initial=0)>1e-8:

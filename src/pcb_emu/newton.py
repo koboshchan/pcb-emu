@@ -7,10 +7,17 @@ class NewtonFailure(RuntimeError):
     pass
 
 
+def _residual(matrix,x,rhs):
+    if hasattr(matrix,'_pcb_emu_residual'):return matrix._pcb_emu_residual
+    # Accumulate high-conductance KCL cancellation with extended precision.
+    # Sparse LU remains float64; this also supplies its refinement residual.
+    return np.asarray(matrix.astype(np.longdouble)@x.astype(np.longdouble)-rhs.astype(np.longdouble),dtype=float)
+
+
 def newton(assemble,initial,scale,max_iterations=80):
     x=initial.copy()
     for iteration in range(max_iterations):
-        matrix,rhs=assemble(x,scale);residual=matrix@x-rhs
+        matrix,rhs=assemble(x,scale);residual=_residual(matrix,x,rhs)
         weights=np.maximum(np.asarray(abs(matrix).sum(axis=1)).ravel(),1e-5)
         baseline=np.linalg.norm(residual/weights)
         delta=spsolve(matrix,-residual)
@@ -25,7 +32,7 @@ def newton(assemble,initial,scale,max_iterations=80):
         alpha=1.
         for _ in range(24):
             trial=x+alpha*delta;candidate,b=assemble(trial,scale)
-            merit=np.linalg.norm((candidate@trial-b)/weights)
+            merit=np.linalg.norm(_residual(candidate,trial,b)/weights)
             if np.isfinite(merit) and (merit<=(1-1e-4*alpha)*baseline or merit<1e-12):
                 x=trial
                 break
