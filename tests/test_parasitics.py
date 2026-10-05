@@ -25,3 +25,19 @@ def test_copper_and_virtual_supply():
     p=e.add_psu({'ch':5});e.connect(p.pin('ch+'),b.pin('J','1'));e.connect(p.pin('ch-'),b.pin('J','2'));e.drive(p.pin('ch-'),0);p.on()
     e.dc();assert np.isfinite(e.x).all()
     assert e.read(b.pin('J','1'))>e.read(b.pin('J','2'))
+
+
+def test_contacts_condensed_but_finite_trace_resistance_preserved():
+    b=Board(name='b',extracted=specimen());e=Emulator(ideal_copper=False);e.add_board(b);e._compile()
+    assert len(e.nodes)==4
+    assert e.pin_indices[b.pin('J','1').key]!=e.pin_indices[b.pin('J','2').key]
+    expected=1.68e-8*.01/(.0002*.000035)
+    assert abs(sum(r for a,b,r in e.edges)-expected)<1e-10
+    assert all(r>0 for a,b,r in e.edges)
+
+
+def test_explicit_zero_wire_merges_distributed_pins():
+    b=Board(name='b',extracted=specimen());e=Emulator(ideal_copper=False);e.add_board(b)
+    e.connect(b.pin('J','1'),b.pin('J','2'),resistance=0)
+    e._compile()
+    assert e.pin_indices[b.pin('J','1').key]==e.pin_indices[b.pin('J','2').key]

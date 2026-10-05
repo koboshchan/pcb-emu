@@ -99,7 +99,16 @@ class Emulator:
                     for p in board.pins.values(): aliases[p.node]=f'{board.name}@{p.ref}:{p.pad}'
             self._pin_nodes={p.key:f'{b.name}@{p.ref}:{p.pad}' for b in self.boards.values() for p in b.pins.values()}
             physical.update(self._pin_nodes.values())
-            for a,b,r in self.connections: edges.append((self._pin_nodes[a.key],self._pin_nodes[b.key],max(r,1e-8)))
+            for a,b,r in self.connections: edges.append((self._pin_nodes[a.key],self._pin_nodes[b.key],r))
+            # Intersecting copper pieces meet at an ideal contact. Merge only
+            # those explicit zero-resistance contacts, never finite traces/vias.
+            parents={n:n for n in set(aliases.values())|physical|{n for edge in edges for n in edge[:2]}}
+            for a,b,r in edges:
+                if r==0:parents[root(b)]=root(a)
+            aliases={n:root(v) for n,v in aliases.items()}
+            self._pin_nodes={key:root(v) for key,v in self._pin_nodes.items()}
+            physical={root(n) for n in physical}
+            edges=[(root(a),root(b),r) for a,b,r in edges if r and root(a)!=root(b)]
         self.nodes=sorted(set(aliases.values())|physical|{n for edge in edges for n in edge[:2]})
         self.indices={n:i for i,n in enumerate(self.nodes)}; self.aliases=aliases; self.edges=edges
         self.pin_indices={p.key:self.indices[aliases[p.node] if self.ideal_copper else self._pin_nodes[p.key]] for b in self.boards.values() for p in b.pins.values()}

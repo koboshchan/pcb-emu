@@ -59,7 +59,7 @@ def copper_graph(board,temperature=20,copper_thickness_um=None,via_plating_um=25
                 if k<=j or item['entity']==items[k]['entity']:continue
                 overlap=s.intersection(shapes[k]);xy=(overlap.representative_point().x,overlap.representative_point().y)
                 a=attach(item['entity'],xy);b=attach(items[k]['entity'],xy)
-                if a!=b:edges.append((a,b,1e-7))
+                if a!=b:edges.append((a,b,0.))
     for i,e in enumerate(entities):
         ts=terminals[i]
         if e['kind']=='track':
