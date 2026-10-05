@@ -81,7 +81,7 @@ def extract_board(name, filename, max_error_nm=1000):
         return list(polygons(poly))
 
     for fp in sorted(board.GetFootprints(), key=lambda f: f.GetReference()):
-        comp = {'ref': fp.GetReference(), 'value': fp.GetValue(), 'footprint': str(fp.GetFPID().GetLibItemName()), 'pads': {}}
+        comp = {'ref': fp.GetReference(), 'value': fp.GetValue(), 'footprint': str(fp.GetFPID().GetLibItemName()), 'pads': {}, 'dnp': bool(fp.IsDNP()) if hasattr(fp, 'IsDNP') else False}
         for pad in fp.Pads():
             if pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
                 continue
@@ -103,7 +103,7 @@ def extract_board(name, filename, max_error_nm=1000):
         i = uf.add()
         if isinstance(track, pcbnew.PCB_VIA):
             pos=track.GetPosition()
-            meta.append({'kind':'via','label':track.GetNetname(),'xy_mm':[pos.x/1e6,pos.y/1e6],'drill_mm':track.GetDrillValue()/1e6})
+            meta.append({'kind':'via','label':track.GetNetname(),'xy_mm':[pos.x/1e6,pos.y/1e6],'drill_mm':track.GetDrillValue()/1e6,'layers':[board.GetLayerName(l) for l in layers if track.IsOnLayer(l)]})
         else:
             a=track.GetStart();b=track.GetEnd()
             meta.append({'kind':'track','label':track.GetNetname(),'start_mm':[a.x/1e6,a.y/1e6],'end_mm':[b.x/1e6,b.y/1e6],'width_mm':track.GetWidth()/1e6})
@@ -154,7 +154,9 @@ def extract_board(name, filename, max_error_nm=1000):
     }
     if hashlib.sha256(filename.read_bytes()).hexdigest() != source_sha:
         raise RuntimeError('Input changed during extraction')
-    copper={'entities':meta,'layer_shapes':{board.GetLayerName(l):[{'entity':i,'wkt':s.wkt} for s,i in entries] for l,entries in by_layer.items()}, 'thickness_mm':board.GetDesignSettings().GetBoardThickness()/1e6, 'copper_thickness_um':35., 'copper_thickness_source':'default 1 oz; stackup overrides supported by graph parameters'}
+    copper={'entities':meta,'layer_shapes':{board.GetLayerName(l):[{'entity':i,'wkt':s.wkt} for s,i in entries] for l,entries in by_layer.items()}, 'thickness_mm':board.GetDesignSettings().GetBoardThickness()/1e6, 'copper_thickness_um':35., 'copper_thickness_source':'default 1 oz unless saved layer stackup or graph override is available'}
+    from .stackup import copper_stackup
+    copper.update(copper_stackup(filename.read_text(), [board.GetLayerName(l) for l in layers], copper['thickness_mm']))
     return {'copper_geometry':copper, 'board':name, 'path':str(filename), 'sha256':source_sha, 'kicad_version':pcbnew.Version(), 'zone_refilled_in_memory':True, 'polygon_max_error_nm':max_error_nm, 'components':components, 'nets':nets, 'report':report}
 
 
