@@ -29,6 +29,18 @@ def test_roundoff_tolerance_does_not_accept_large_voltage_step():
     with pytest.raises(NewtonFailure):newton(assemble,np.zeros(1),1)
 
 
+def test_high_conductance_opamp_feedback_converges():
+    from pcb_emu import Board,Emulator
+    extracted={'board':'test','nets':[{'node':n,'pads':[]} for n in ['vplus','vminus','input','out','ground']],
+        'components':[{'ref':'U1','value':'TL074','footprint':'SOIC-14','pads':{p:{'node':node} for p,node in {'1':'out','2':'out','3':'input','4':'vplus','5':'ground','6':'ground','7':'ground','8':'ground','9':'ground','10':'ground','11':'vminus','12':'ground','13':'ground','14':'ground'}.items()}},
+            {'ref':'J','value':'Connector','footprint':'test','pads':{'1':{'node':'input'},'2':{'node':'vplus'},'3':{'node':'vminus'},'4':{'node':'ground'}}}]}
+    b=Board(name='test',extracted=extracted);e=Emulator();e.add_board(b)
+    for pad,value in [('1',.5),('2',15),('3',-15),('4',0)]:e.drive(b.pin('J',pad),value)
+    e._compile();out=e.aliases['out'];input_node=e.aliases['input']
+    e.edges.append((out,input_node,1e-7));e.dc()
+    assert e.read(b.pin('U1','1'))==pytest.approx(.5,abs=1e-6)
+
+
 def test_continuation_reaches_full_gain():
     def assemble(x,s):return csc_matrix([[1.]]),np.array([s])
     assert continuation(assemble,np.zeros(1))[0]==pytest.approx(1.)
